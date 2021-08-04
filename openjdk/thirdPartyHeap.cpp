@@ -1,4 +1,5 @@
 
+#include "precompiled.hpp"
 #include "gc/shared/thirdPartyHeap.hpp"
 #include "mmtk.h"
 #include "thirdPartyHeapArguments.hpp"

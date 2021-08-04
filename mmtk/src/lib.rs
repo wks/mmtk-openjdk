@@ -9,6 +9,8 @@ extern crate libc;
 extern crate mmtk;
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 use std::ptr::null_mut;
 
@@ -29,6 +31,7 @@ mod object_scanning;
 pub mod reference_glue;
 pub mod scanning;
 pub(crate) mod vm_metadata;
+pub mod vm_operation;
 
 #[repr(C)]
 pub struct NewBuffer {
@@ -81,6 +84,7 @@ pub struct OpenJDK_Upcalls {
     pub scan_vm_thread_roots: extern "C" fn(process_edges: ProcessEdgesFn),
     pub number_of_mutators: extern "C" fn() -> usize,
     pub schedule_finalizer: extern "C" fn(),
+    pub run_in_vm_thread: extern "C" fn(rust_closure: *mut ::libc::c_void, evaluate_in_safepoint: bool),
 }
 
 pub static mut UPCALLS: *const OpenJDK_Upcalls = null_mut();

@@ -131,6 +131,7 @@ typedef struct {
     void (*scan_vm_thread_roots) (ProcessEdgesFn process_edges);
     size_t (*number_of_mutators)();
     void (*schedule_finalizer)();
+    void (*run_in_vm_thread)(void* rust_closure, bool evaluate_at_safepoint);
 } OpenJDK_Upcalls;
 
 extern void openjdk_gc_init(OpenJDK_Upcalls *calls, size_t heap_size);
@@ -157,6 +158,11 @@ extern void add_phantom_candidate(void* ref, void* referent);
 
 extern void harness_begin(void *tls);
 extern void harness_end();
+
+/**
+ * VM operations
+ */
+extern void mmtk_run_rust_vm_operation(void* rust_closure);
 
 #ifdef __cplusplus
 }

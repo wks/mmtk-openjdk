@@ -29,6 +29,7 @@
  * Created on 30 November 2018, 5:45 PM
  */
 
+#include "precompiled.hpp"
 #include "mmtkUpcalls.hpp"
 #include "mmtkRootsClosure.hpp"
 #include "mmtkHeap.hpp"
@@ -44,22 +45,41 @@
 #include "classfile/stringTable.hpp"
 #include "code/nmethod.hpp"
 #include "memory/iterator.inline.hpp"
+#include "mmtkVMOperation.hpp"
+#include "mmtkVMCompanionThread.hpp"
 
-static bool gcInProgress = false;
+static size_t start_the_world_count = 0;
 
 static void mmtk_stop_all_mutators(void *tls, void (*create_stack_scan_work)(void* mutator)) {
-    gcInProgress = true;
     MMTkHeap::_create_stack_scan_work = create_stack_scan_work;
-    SafepointSynchronize::begin();
+    //SafepointSynchronize::begin();
+
+    log_info(gc)("Requesting thread suspended... current thread is [%d] %p", gettid(), Thread::current());
+    MMTkHeap::heap()->companion_thread()->request(MMTkVMCompanionThread::_threads_suspended, true);
+    log_info(gc)("The world has stopped. Now enumerate threads...");
+
+    {
+        JavaThreadIteratorWithHandle jtiwh;
+        while (JavaThread *cur = jtiwh.next()) {
+            log_info(gc)("Enumerated thread %p", cur);
+            MMTkHeap::heap()->report_java_thread_yield(cur);
+        }
+    }
+    log_info(gc)("Finished enumerating threads.");
 }
 
 static void mmtk_resume_mutators(void *tls) {
     MMTkHeap::_create_stack_scan_work = NULL;
-    SafepointSynchronize::end();
-    MMTkHeap::heap()->gc_lock()->lock_without_safepoint_check();
-    gcInProgress = false;
-    MMTkHeap::heap()->gc_lock()->notify_all();
-    MMTkHeap::heap()->gc_lock()->unlock();
+    //SafepointSynchronize::end();
+    log_info(gc)("Requesting thread resumed...");
+    MMTkHeap::heap()->companion_thread()->request(MMTkVMCompanionThread::_threads_resumed, true);
+    log_info(gc)("Returned from requesting thread resumed...");
+
+    {
+        MutexLockerEx locker(MMTkHeap::heap()->gc_lock(), true);
+        start_the_world_count++;
+        MMTkHeap::heap()->gc_lock()->notify_all();
+    }
 }
 
 static void mmtk_spawn_collector_thread(void* tls, void* ctx) {
@@ -82,15 +102,18 @@ static void mmtk_spawn_collector_thread(void* tls, void* ctx) {
 }
 
 static void mmtk_block_for_gc() {
-    gcInProgress = true;
     MMTkHeap::heap()->_last_gc_time = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
+    log_info(gc)("Waiting for next resumption... current thread is [%d] %p", gettid(), Thread::current());
     {
-        Monitor* gc_lock = MMTkHeap::heap()->gc_lock();
-        MutexLocker ml(gc_lock);
-        while (gcInProgress) {
-            gc_lock->wait();
+        MutexLocker locker(MMTkHeap::heap()->gc_lock());
+        size_t my_count = start_the_world_count;
+        size_t next_count = my_count + 1;
+
+        while (start_the_world_count < next_count) {
+            MMTkHeap::heap()->gc_lock()->wait();
         }
     }
+    log_info(gc)("Returned from waiting for next resumption...");
 }
 
 static void* mmtk_get_mmtk_mutator(void* tls) {
@@ -252,6 +275,17 @@ static size_t mmtk_number_of_mutators() {
     return Threads::number_of_threads();
 }
 
+void mmtk_run_in_vm_thread(void* rust_closure, bool evaluate_at_safepoint) {
+    VM_MMTkRustOperation vm_operation(rust_closure, evaluate_at_safepoint);
+
+    printf("[OpenJDK] About to execute VM operation...\n");
+    fflush(stdout);
+
+    VMThread::execute(&vm_operation);
+
+    printf("[OpenJDK] returned from VMThread::execute\n");
+    fflush(stdout);
+}
 OpenJDK_Upcalls mmtk_upcalls = {
     mmtk_stop_all_mutators,
     mmtk_resume_mutators,
@@ -291,4 +325,5 @@ OpenJDK_Upcalls mmtk_upcalls = {
     mmtk_scan_vm_thread_roots,
     mmtk_number_of_mutators,
     mmtk_schedule_finalizer,
+    mmtk_run_in_vm_thread,
 };

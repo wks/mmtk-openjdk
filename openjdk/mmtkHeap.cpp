@@ -46,6 +46,8 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
 #include "runtime/atomic.hpp"
+#include "mmtkVMCompanionThread.hpp"
+
 /*
 needed support from rust
 heap capacity
@@ -96,7 +98,7 @@ jint MMTkHeap::initialize() {
 
     _start = (HeapWord*) starting_heap_address();
     _end = (HeapWord*) last_heap_address();
-   //  printf("start: %p, end: %p\n", _start, _end);
+    //  printf("start: %p, end: %p\n", _start, _end);
 
     initialize_reserved_region(_start, _end);
 
@@ -105,6 +107,12 @@ jint MMTkHeap::initialize() {
     //barrier_set->initialize();
     BarrierSet::set_barrier_set(barrier_set);
 
+    _companion_thread = new MMTkVMCompanionThread();
+    if (!os::create_thread(_companion_thread, os::pgc_thread)) {
+      printf("Failed to create thread");
+      guarantee(false, "panic");
+    }
+    os::start_thread(_companion_thread);
     // Set up the GCTaskManager
     //  _mmtk_gc_task_manager = mmtkGCTaskManager::create(ParallelGCThreads);
     return JNI_OK;
@@ -302,7 +310,10 @@ void MMTkHeap::initialize_serviceability() {//OK
 }
 
 // Print heap information on the given outputStream.
-void MMTkHeap::print_on(outputStream* st) const {guarantee(false, "print on not supported");}
+void MMTkHeap::print_on(outputStream* st) const {
+   st->print("MMTk Heap: printing is not supported, yet.\n");
+   //guarantee(false, "print on not supported");
+}
 
 
 // Print all GC threads (other than the VM thread)

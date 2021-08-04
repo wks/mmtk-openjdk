@@ -22,6 +22,7 @@
  *
  */
 
+#include "precompiled.hpp"
 #include "mmtkCollectorThread.hpp"
 #include "mmtk.h"
 
@@ -31,5 +32,6 @@ MMTkCollectorThread::MMTkCollectorThread(void* context): NamedThread() {
 }
 
 void MMTkCollectorThread::run() {
+  this->initialize_named_thread();
   start_worker((void*) this, third_party_heap_collector);
 }

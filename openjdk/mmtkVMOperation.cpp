@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, Red Hat, Inc. and/or its affiliates.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -16,21 +16,28 @@
  * 2 along with this work; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  *
- * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * Please contact Sun 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  *
  */
 
 #include "precompiled.hpp"
-#include "mmtkContextThread.hpp"
+#include "mmtkVMOperation.hpp"
 #include "mmtk.h"
+#include "mmtkVMCompanionThread.hpp"
 
-MMTkContextThread::MMTkContextThread() : NamedThread() {
-  set_name("Controller Context Thread");
+VM_MMTkSTWOperation::VM_MMTkSTWOperation(MMTkVMCompanionThread *companion_thread):
+    _companion_thread(companion_thread) {
 }
 
-void MMTkContextThread::run() {
-  this->initialize_named_thread();
-  start_control_collector((void*) this);
+void VM_MMTkSTWOperation::doit() {
+    log_info(gc)("Entered VM_MMTkSTWOperation::doit()");
+    _companion_thread->reach_suspended_and_wait_for_resume();
+    log_info(gc)("Leaving VM_MMTkSTWOperation::doit()");
 }
+
+void VM_MMTkRustOperation::doit() {
+    mmtk_run_rust_vm_operation(_rust_closure);
+}
+
