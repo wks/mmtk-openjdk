@@ -43,8 +43,6 @@
 static size_t mmtk_start_the_world_count = 0;
 
 static void mmtk_stop_all_mutators(void *tls, void (*create_stack_scan_work)(void* mutator)) {
-  MMTkHeap::_create_stack_scan_work = create_stack_scan_work;
-
   log_debug(gc)("Requesting the VM to suspend all mutators...");
   MMTkHeap::heap()->companion_thread()->request(MMTkVMCompanionThread::_threads_suspended, true);
   log_debug(gc)("Mutators stopped. Now enumerate threads for scanning...");
@@ -52,15 +50,13 @@ static void mmtk_stop_all_mutators(void *tls, void (*create_stack_scan_work)(voi
   {
     JavaThreadIteratorWithHandle jtiwh;
     while (JavaThread *cur = jtiwh.next()) {
-      MMTkHeap::heap()->report_java_thread_yield(cur);
+      create_stack_scan_work((void*)&cur->third_party_heap_mutator);
     }
   }
   log_debug(gc)("Finished enumerating threads.");
 }
 
 static void mmtk_resume_mutators(void *tls) {
-  MMTkHeap::_create_stack_scan_work = NULL;
-
   log_debug(gc)("Requesting the VM to resume all mutators...");
   MMTkHeap::heap()->companion_thread()->request(MMTkVMCompanionThread::_threads_resumed, true);
   log_debug(gc)("Mutators resumed. Now notify any mutators waiting for GC to finish...");
