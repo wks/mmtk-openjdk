@@ -7,6 +7,7 @@ use std::ptr::null_mut;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Mutex;
 
+use atomic_refcell::AtomicRefCell;
 use libc::{c_char, c_void, uintptr_t};
 use mmtk::util::alloc::AllocationError;
 use mmtk::util::opaque_pointer::*;
@@ -25,7 +26,7 @@ mod object_scanning;
 pub mod reference_glue;
 pub mod scanning;
 pub(crate) mod vm_metadata;
-pub(crate) mod reference_processor;
+pub(crate) mod weak_processor;
 
 #[repr(C)]
 pub struct NewBuffer {
@@ -132,6 +133,8 @@ impl VMBinding for OpenJDK {
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 
+use crate::weak_processor::WeakProcessor;
+
 pub static MMTK_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 lazy_static! {
@@ -142,6 +145,12 @@ lazy_static! {
         let ret = mmtk::memory_manager::mmtk_init(&builder);
         MMTK_INITIALIZED.store(true, std::sync::atomic::Ordering::SeqCst);
         *ret
+    };
+
+    // Note: Only one thread (a GC worker) shall use WEAK_PROCESSOR to process weak reference.
+    // It is an error if two threads try to borrow it mutably at the same time.
+    pub static ref WEAK_PROCESSOR: AtomicRefCell<WeakProcessor> = {
+        AtomicRefCell::new(WeakProcessor::new())
     };
 }
 

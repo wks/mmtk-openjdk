@@ -19,6 +19,12 @@ impl ReferenceGlue<OpenJDK> for VMReferenceGlue {
         unsafe { InstanceRefKlass::referent_address(oop).load::<ObjectReference>() }
     }
     fn enqueue_references(references: &[ObjectReference], _tls: VMWorkerThread) {
+        Self::enqueue_references2(references)
+    }
+}
+
+impl VMReferenceGlue {
+    pub fn enqueue_references2(references: &[ObjectReference]) {
         unsafe {
             ((*UPCALLS).enqueue_references)(references.as_ptr(), references.len());
         }

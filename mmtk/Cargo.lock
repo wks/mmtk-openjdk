@@ -375,6 +375,7 @@ dependencies = [
 name = "mmtk_openjdk"
 version = "0.15.0"
 dependencies = [
+ "atomic_refcell",
  "built",
  "lazy_static",
  "libc",
