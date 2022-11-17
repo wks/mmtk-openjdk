@@ -23,6 +23,12 @@ pub struct WeakProcessor {
     pub finalizable_processor: Mutex<FinalizableProcessor>,
 }
 
+impl Default for WeakProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WeakProcessor {
     pub fn new() -> Self {
         Self {
@@ -46,7 +52,11 @@ impl WeakProcessor {
             unimplemented!("Forwarding is not implemented.")
         }
 
-        log::trace!("Entering process_weak_refs. forwarding: {}, nursery: {}", forwarding, nursery);
+        log::trace!(
+            "Entering process_weak_refs. forwarding: {}, nursery: {}",
+            forwarding,
+            nursery
+        );
 
         'retry_loop: loop {
             log::trace!("Phase: {:?}", self.phase);
@@ -75,8 +85,7 @@ impl WeakProcessor {
                         finalizable_processor.ready_for_finalize.len()
                     );
 
-                    finalizable_processor
-                        .scan(|o| context.trace_object(o), nursery);
+                    finalizable_processor.scan(|o| context.trace_object(o), nursery);
                     debug!(
                         "Finished finalization, {} objects in candidates, {} objects ready to finalize",
                         finalizable_processor.candidates.len(),

@@ -26,17 +26,17 @@ pub struct ReferenceProcessors {
 impl ReferenceProcessors {
     pub fn new() -> Self {
         ReferenceProcessors {
-            soft: ReferenceProcessor::new(Semantics::SOFT),
-            weak: ReferenceProcessor::new(Semantics::WEAK),
-            phantom: ReferenceProcessor::new(Semantics::PHANTOM),
+            soft: ReferenceProcessor::new(Semantics::Soft),
+            weak: ReferenceProcessor::new(Semantics::Weak),
+            phantom: ReferenceProcessor::new(Semantics::Phantom),
         }
     }
 
     pub fn get(&self, semantics: Semantics) -> &ReferenceProcessor {
         match semantics {
-            Semantics::SOFT => &self.soft,
-            Semantics::WEAK => &self.weak,
-            Semantics::PHANTOM => &self.phantom,
+            Semantics::Soft => &self.soft,
+            Semantics::Weak => &self.weak,
+            Semantics::Phantom => &self.phantom,
         }
     }
 
@@ -160,9 +160,9 @@ pub struct ReferenceProcessor {
 
 #[derive(Debug, PartialEq)]
 pub enum Semantics {
-    SOFT,
-    WEAK,
-    PHANTOM,
+    Soft,
+    Weak,
+    Phantom,
 }
 
 struct ReferenceProcessorSync {
@@ -390,7 +390,7 @@ impl ReferenceProcessor {
     where
         F: FnMut(ObjectReference) -> ObjectReference,
     {
-        debug_assert!(self.semantics == Semantics::SOFT);
+        debug_assert!(self.semantics == Semantics::Soft);
 
         let sync = self.sync.lock().unwrap();
 
