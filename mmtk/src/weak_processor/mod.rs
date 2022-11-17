@@ -8,6 +8,7 @@ use self::{finalizable_processor::FinalizableProcessor, reference_processor::Ref
 pub(crate) mod finalizable_processor;
 pub(crate) mod reference_processor;
 
+#[derive(Debug)]
 enum Phase {
     Inactive,
     Soft,
@@ -45,7 +46,10 @@ impl WeakProcessor {
             unimplemented!("Forwarding is not implemented.")
         }
 
+        log::trace!("Entering process_weak_refs. forwarding: {}, nursery: {}", forwarding, nursery);
+
         'retry_loop: loop {
+            log::trace!("Phase: {:?}", self.phase);
             match self.phase {
                 Phase::Inactive => {
                     self.phase = Phase::Soft;
@@ -84,7 +88,8 @@ impl WeakProcessor {
                 }
                 Phase::Phantom => {
                     self.reference_processors
-                        .scan_weak_refs(|o| context.trace_object(o));
+                        .scan_phantom_refs(|o| context.trace_object(o));
+                    self.phase = Phase::Inactive;
                     break 'retry_loop false;
                 }
             }

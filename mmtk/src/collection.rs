@@ -1,11 +1,10 @@
-use log::info;
 use mmtk::util::alloc::AllocationError;
 use mmtk::util::opaque_pointer::*;
 use mmtk::vm::{Collection, GCThreadContext, ProcessWeakRefsContext, Scanning, VMBinding};
 use mmtk::{Mutator, MutatorContext};
 
-use crate::{UPCALLS, WEAK_PROCESSOR};
 use crate::{MutatorClosure, OpenJDK};
+use crate::{UPCALLS, WEAK_PROCESSOR};
 
 pub struct VMCollection {}
 
@@ -96,10 +95,25 @@ impl Collection<OpenJDK> for VMCollection {
         Self::schedule_finalization2()
     }
 
-    fn process_weak_refs(context: impl ProcessWeakRefsContext, forwarding: bool, nursery: bool) -> bool {
-        info!("process_weak_refs invoked!");
+    fn vm_prepare(_tls: VMWorkerThread) {
+        let weak_processor = WEAK_PROCESSOR.borrow_mut();
+        assert!(!weak_processor.is_active());
+    }
+
+    fn process_weak_refs(
+        _tls: VMWorkerThread,
+        context: impl ProcessWeakRefsContext,
+        forwarding: bool,
+        nursery: bool,
+    ) -> bool {
         let mut weak_processor = WEAK_PROCESSOR.borrow_mut();
         weak_processor.process_weak_refs(context, forwarding, nursery)
+    }
+
+    fn vm_release(_tls: VMWorkerThread) {
+        let weak_processor = WEAK_PROCESSOR.borrow_mut();
+        assert!(!weak_processor.is_active());
+        weak_processor.reference_processors.enqueue_refs();
     }
 }
 
