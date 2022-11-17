@@ -3,6 +3,7 @@ use crate::OpenJDK_Upcalls;
 use crate::BUILDER;
 use crate::SINGLETON;
 use crate::UPCALLS;
+use crate::WEAK_PROCESSOR;
 use libc::c_char;
 use mmtk::memory_manager;
 use mmtk::plan::BarrierSelector;
@@ -226,17 +227,25 @@ pub extern "C" fn modify_check(object: ObjectReference) {
 
 #[no_mangle]
 pub extern "C" fn add_weak_candidate(reff: ObjectReference) {
-    memory_manager::add_weak_candidate(&SINGLETON, reff)
+    let weak_processor = WEAK_PROCESSOR.borrow();
+    assert!(!weak_processor.is_active());
+    weak_processor.reference_processors.add_weak_candidate(reff)
 }
 
 #[no_mangle]
 pub extern "C" fn add_soft_candidate(reff: ObjectReference) {
-    memory_manager::add_soft_candidate(&SINGLETON, reff)
+    let weak_processor = WEAK_PROCESSOR.borrow();
+    assert!(!weak_processor.is_active());
+    weak_processor.reference_processors.add_soft_candidate(reff)
 }
 
 #[no_mangle]
 pub extern "C" fn add_phantom_candidate(reff: ObjectReference) {
-    memory_manager::add_phantom_candidate(&SINGLETON, reff)
+    let weak_processor = WEAK_PROCESSOR.borrow();
+    assert!(!weak_processor.is_active());
+    weak_processor
+        .reference_processors
+        .add_phantom_candidate(reff)
 }
 
 // The harness_begin()/end() functions are different than other API functions in terms of the thread state.
@@ -379,12 +388,26 @@ pub extern "C" fn mmtk_array_copy_post(
 // finalization
 #[no_mangle]
 pub extern "C" fn add_finalizer(object: ObjectReference) {
-    memory_manager::add_finalizer(&SINGLETON, object);
+    let weak_processor = WEAK_PROCESSOR.borrow();
+    assert!(!weak_processor.is_active());
+    weak_processor
+        .finalizable_processor
+        .lock()
+        .unwrap()
+        .add(object);
 }
 
 #[no_mangle]
 pub extern "C" fn get_finalized_object() -> ObjectReference {
-    match memory_manager::get_finalized_object(&SINGLETON) {
+    let weak_processor = WEAK_PROCESSOR.borrow();
+    assert!(!weak_processor.is_active());
+
+    let maybe_obj = {
+        let mut finalizable_processor = weak_processor.finalizable_processor.lock().unwrap();
+        finalizable_processor.get_ready_object()
+    };
+
+    match maybe_obj {
         Some(obj) => obj,
         None => unsafe { Address::ZERO.to_object_reference() },
     }

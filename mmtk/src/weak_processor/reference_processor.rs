@@ -4,8 +4,6 @@ use mmtk::util::ObjectReference;
 use mmtk::vm::ObjectModel;
 use mmtk::vm::ReferenceGlue;
 use mmtk::vm::VMBinding;
-use mmtk::MMTK;
-
 use std::collections::HashSet;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
@@ -82,7 +80,7 @@ impl ReferenceProcessors {
     // Methods for scanning weak references. It needs to be called in a decreasing order of reference strengths, i.e. soft > weak > phantom
 
     /// Scan soft references.
-    pub fn scan_soft_refs<F>(&self, mut trace: F, mmtk: &'static MMTK<OpenJDK>)
+    pub fn scan_soft_refs<F>(&self, mut trace: F)
     where
         F: FnMut(ObjectReference) -> ObjectReference,
     {
@@ -100,7 +98,7 @@ impl ReferenceProcessors {
     }
 
     /// Scan weak references.
-    pub fn scan_weak_refs<F>(&self, mut trace: F, mmtk: &'static MMTK<OpenJDK>)
+    pub fn scan_weak_refs<F>(&self, mut trace: F)
     where
         F: FnMut(ObjectReference) -> ObjectReference,
     {
@@ -108,7 +106,7 @@ impl ReferenceProcessors {
     }
 
     /// Scan phantom references.
-    pub fn scan_phantom_refs<F>(&self, mut trace: F, mmtk: &'static MMTK<OpenJDK>)
+    pub fn scan_phantom_refs<F>(&self, mut trace: F)
     where
         F: FnMut(ObjectReference) -> ObjectReference,
     {
@@ -180,6 +178,7 @@ struct ReferenceProcessorSync {
     enqueued_references: Vec<ObjectReference>,
 
     /// Index into the references table for the start of nursery objects
+    #[allow(unused)]
     nursery_index: usize,
 }
 
