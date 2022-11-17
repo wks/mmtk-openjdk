@@ -25,6 +25,7 @@ mod object_scanning;
 pub mod reference_glue;
 pub mod scanning;
 pub(crate) mod vm_metadata;
+pub(crate) mod reference_processor;
 
 #[repr(C)]
 pub struct NewBuffer {

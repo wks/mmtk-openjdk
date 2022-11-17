@@ -1,6 +1,6 @@
 use mmtk::util::alloc::AllocationError;
 use mmtk::util::opaque_pointer::*;
-use mmtk::vm::{Collection, GCThreadContext, Scanning, VMBinding};
+use mmtk::vm::{Collection, GCThreadContext, ProcessWeakRefsContext, Scanning, VMBinding};
 use mmtk::{Mutator, MutatorContext};
 
 use crate::UPCALLS;
@@ -95,5 +95,9 @@ impl Collection<OpenJDK> for VMCollection {
         unsafe {
             ((*UPCALLS).schedule_finalizer)();
         }
+    }
+
+    fn process_weak_refs(context: impl ProcessWeakRefsContext, forwarding: bool) -> bool {
+        crate::reference_processor::process_weak_refs(context, forwarding)
     }
 }
