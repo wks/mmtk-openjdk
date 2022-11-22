@@ -100,14 +100,9 @@ impl Collection<OpenJDK> for VMCollection {
         assert!(!weak_processor.is_active());
     }
 
-    fn process_weak_refs(
-        _tls: VMWorkerThread,
-        context: impl ProcessWeakRefsContext,
-        forwarding: bool,
-        nursery: bool,
-    ) -> bool {
+    fn process_weak_refs(_tls: VMWorkerThread, context: impl ProcessWeakRefsContext) -> bool {
         let mut weak_processor = WEAK_PROCESSOR.borrow_mut();
-        weak_processor.process_weak_refs(context, forwarding, nursery)
+        weak_processor.process_weak_refs(context)
     }
 
     fn vm_release(_tls: VMWorkerThread) {

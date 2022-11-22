@@ -42,12 +42,9 @@ impl WeakProcessor {
         !matches!(self.phase, Phase::Inactive)
     }
 
-    pub fn process_weak_refs(
-        &mut self,
-        mut context: impl ProcessWeakRefsContext,
-        forwarding: bool,
-        nursery: bool,
-    ) -> bool {
+    pub fn process_weak_refs(&mut self, mut context: impl ProcessWeakRefsContext) -> bool {
+        let forwarding = context.forwarding();
+        let nursery = context.nursery();
         if forwarding {
             unimplemented!("Forwarding is not implemented.")
         }
@@ -55,7 +52,7 @@ impl WeakProcessor {
         log::trace!(
             "Entering process_weak_refs. forwarding: {}, nursery: {}",
             forwarding,
-            nursery
+            nursery,
         );
 
         'retry_loop: loop {
