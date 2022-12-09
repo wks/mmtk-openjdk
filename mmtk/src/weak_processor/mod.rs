@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use log::debug;
-use mmtk::vm::ProcessWeakRefsContext;
+use mmtk::vm::{ProcessWeakRefsContext, ProcessWeakRefsTracer};
 
 use self::{finalizable_processor::FinalizableProcessor, reference_processor::ReferenceProcessors};
 
@@ -42,9 +42,13 @@ impl WeakProcessor {
         !matches!(self.phase, Phase::Inactive)
     }
 
-    pub fn process_weak_refs(&mut self, mut context: impl ProcessWeakRefsContext) -> bool {
-        let forwarding = context.forwarding();
-        let nursery = context.nursery();
+    pub fn process_weak_refs(
+        &mut self,
+        context: ProcessWeakRefsContext,
+        mut tracer: impl ProcessWeakRefsTracer,
+    ) -> bool {
+        let forwarding = context.forwarding;
+        let nursery = context.nursery;
         if forwarding {
             unimplemented!("Forwarding is not implemented.")
         }
@@ -64,13 +68,13 @@ impl WeakProcessor {
                 }
                 Phase::Soft => {
                     self.reference_processors
-                        .scan_soft_refs(|o| context.trace_object(o));
+                        .scan_soft_refs(|o| tracer.trace_object(o));
                     self.phase = Phase::Weak;
                     break 'retry_loop true;
                 }
                 Phase::Weak => {
                     self.reference_processors
-                        .scan_weak_refs(|o| context.trace_object(o));
+                        .scan_weak_refs(|o| tracer.trace_object(o));
                     self.phase = Phase::Final;
                     break 'retry_loop true;
                 }
@@ -82,7 +86,7 @@ impl WeakProcessor {
                         finalizable_processor.ready_for_finalize.len()
                     );
 
-                    finalizable_processor.scan(|o| context.trace_object(o), nursery);
+                    finalizable_processor.scan(|o| tracer.trace_object(o), nursery);
                     debug!(
                         "Finished finalization, {} objects in candidates, {} objects ready to finalize",
                         finalizable_processor.candidates.len(),
@@ -94,7 +98,7 @@ impl WeakProcessor {
                 }
                 Phase::Phantom => {
                     self.reference_processors
-                        .scan_phantom_refs(|o| context.trace_object(o));
+                        .scan_phantom_refs(|o| tracer.trace_object(o));
                     self.phase = Phase::Inactive;
                     break 'retry_loop false;
                 }

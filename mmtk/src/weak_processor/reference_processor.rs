@@ -417,7 +417,7 @@ impl ReferenceProcessor {
             if !referent.is_null() {
                 Self::keep_referent_alive(&mut trace, referent);
             }
-            trace!(" ~> {:?} (retained)", referent.to_address());
+            trace!(" ~> {:?} (retained)", referent.to_raw_address());
         }
 
         debug!("Ending ReferenceProcessor.retain({:?})", self.semantics);
