@@ -37,15 +37,19 @@ pub struct NewBuffer {
 /// A closure for reporting mutators.  The C++ code should pass `data` back as the last argument.
 #[repr(C)]
 pub struct MutatorClosure {
-    pub func: *const extern "C" fn(mutator: *mut Mutator<OpenJDK>, data: *mut libc::c_void),
+    pub func: extern "C" fn(mutator: *mut Mutator<OpenJDK>, data: *mut libc::c_void),
     pub data: *mut libc::c_void,
 }
 
 /// A closure for reporting root edges.  The C++ code should pass `data` back as the last argument.
 #[repr(C)]
 pub struct EdgesClosure {
-    pub func:
-        *const extern "C" fn(buf: *mut Address, size: usize, cap: usize, data: *const libc::c_void),
+    pub func: extern "C" fn(
+        buf: *mut Address,
+        size: usize,
+        cap: usize,
+        data: *mut libc::c_void,
+    ) -> NewBuffer,
     pub data: *const libc::c_void,
 }
 
@@ -109,6 +113,10 @@ pub static GLOBAL_SIDE_METADATA_VM_BASE_ADDRESS: uintptr_t =
 pub static GLOBAL_ALLOC_BIT_ADDRESS: uintptr_t =
     mmtk::util::metadata::side_metadata::ALLOC_SIDE_METADATA_ADDR.as_usize();
 
+#[no_mangle]
+pub static FREE_LIST_ALLOCATOR_SIZE: uintptr_t =
+    std::mem::size_of::<mmtk::util::alloc::FreeListAllocator<OpenJDK>>();
+
 #[derive(Default)]
 pub struct OpenJDK;
 
@@ -128,6 +136,10 @@ impl VMBinding for OpenJDK {
 
     type VMEdge = OpenJDKEdge;
     type VMMemorySlice = Range<Address>;
+
+    const MIN_ALIGNMENT: usize = 8;
+    const MAX_ALIGNMENT: usize = 8;
+    const USE_ALLOCATION_OFFSET: bool = false;
 }
 
 use std::sync::atomic::AtomicBool;

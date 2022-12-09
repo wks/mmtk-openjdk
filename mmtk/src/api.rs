@@ -107,7 +107,7 @@ pub extern "C" fn bind_mutator(tls: VMMutatorThread) -> *mut Mutator<OpenJDK> {
 // It is fine we turn the pointer back to box, as we turned a boxed value to the raw pointer in bind_mutator()
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
 pub extern "C" fn destroy_mutator(mutator: *mut Mutator<OpenJDK>) {
-    memory_manager::destroy_mutator(unsafe { Box::from_raw(mutator) })
+    memory_manager::destroy_mutator(unsafe { &mut *mutator })
 }
 
 #[no_mangle]
@@ -212,7 +212,7 @@ pub extern "C" fn handle_user_collection_request(tls: VMMutatorThread) {
 
 #[no_mangle]
 pub extern "C" fn is_in_mmtk_spaces(object: ObjectReference) -> bool {
-    memory_manager::is_in_mmtk_spaces(object)
+    memory_manager::is_in_mmtk_spaces::<OpenJDK>(object)
 }
 
 #[no_mangle]
@@ -409,7 +409,7 @@ pub extern "C" fn get_finalized_object() -> ObjectReference {
 
     match maybe_obj {
         Some(obj) => obj,
-        None => unsafe { Address::ZERO.to_object_reference() },
+        None => ObjectReference::NULL,
     }
 }
 
