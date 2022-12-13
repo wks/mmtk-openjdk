@@ -49,8 +49,16 @@ impl WeakProcessor {
     ) -> bool {
         let forwarding = context.forwarding;
         let nursery = context.nursery;
+
         if forwarding {
-            unimplemented!("Forwarding is not implemented.")
+            assert!(matches!(self.phase, Phase::Inactive));
+            self.reference_processors.forward_refs(|o| tracer.trace_object(o));
+            {
+                let mut finalizable_processor = self.finalizable_processor.lock().unwrap();
+                finalizable_processor.forward_candidate(&mut |o| tracer.trace_object(o), nursery);
+                finalizable_processor.forward_finalizable(&mut |o| tracer.trace_object(o), nursery);
+            }
+            return false;
         }
 
         log::trace!(
