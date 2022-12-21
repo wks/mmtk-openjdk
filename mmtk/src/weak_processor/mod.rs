@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use log::debug;
 use mmtk::{
     scheduler::{GCWork, GCWorker, WorkBucketStage},
-    vm::{ObjectTracer, ProcessWeakRefsContext, QueuingTracerFactory},
+    vm::{ObjectTracer, ObjectTracerContext},
 };
 
 use crate::{OpenJDK, WEAK_PROCESSOR};
@@ -50,33 +50,11 @@ impl WeakProcessor {
     pub fn process_weak_refs(
         &mut self,
         worker: &mut GCWorker<OpenJDK>,
-        context: ProcessWeakRefsContext,
-        tracer_factory: impl QueuingTracerFactory<OpenJDK>,
+        tracer_context: impl ObjectTracerContext<OpenJDK>,
     ) -> bool {
-        let forwarding = context.forwarding;
-        let nursery = context.nursery;
+        let nursery = false;
 
-        if forwarding {
-            assert!(matches!(self.phase, Phase::Inactive));
-            tracer_factory.with_queuing_tracer(worker, |tracer| {
-                self.reference_processors
-                    .forward_refs(|o| tracer.trace_object(o));
-                {
-                    let mut finalizable_processor = self.finalizable_processor.lock().unwrap();
-                    finalizable_processor
-                        .forward_candidate(&mut |o| tracer.trace_object(o), nursery);
-                    finalizable_processor
-                        .forward_finalizable(&mut |o| tracer.trace_object(o), nursery);
-                }
-            });
-            return false;
-        }
-
-        log::trace!(
-            "Entering process_weak_refs. forwarding: {}, nursery: {}",
-            forwarding,
-            nursery,
-        );
+        log::trace!("Entering process_weak_refs.");
 
         'retry_loop: loop {
             log::trace!("Phase: {:?}", self.phase);
@@ -86,7 +64,7 @@ impl WeakProcessor {
                     continue 'retry_loop;
                 }
                 Phase::Soft => {
-                    tracer_factory.with_queuing_tracer(worker, |tracer| {
+                    tracer_context.with_tracer(worker, |tracer| {
                         self.reference_processors
                             .scan_soft_refs(|o| tracer.trace_object(o));
                     });
@@ -98,14 +76,14 @@ impl WeakProcessor {
                     // I am testing if the QueuingTracerFactory can be
                     // cloned and sent to another work packet.
                     let work = ProcessWeakRefsWork {
-                        tracer_factory: tracer_factory.clone(),
+                        tracer_context: tracer_context.clone(),
                     };
                     worker.scheduler().work_buckets[WorkBucketStage::VMRefClosure].add(work);
                     self.phase = Phase::Final;
                     break 'retry_loop true;
                 }
                 Phase::Final => {
-                    tracer_factory.with_queuing_tracer(worker, |tracer| {
+                    tracer_context.with_tracer(worker, |tracer| {
 
                         let mut finalizable_processor = self.finalizable_processor.lock().unwrap();
                         debug!(
@@ -126,7 +104,7 @@ impl WeakProcessor {
                     break 'retry_loop true;
                 }
                 Phase::Phantom => {
-                    tracer_factory.with_queuing_tracer(worker, |tracer| {
+                    tracer_context.with_tracer(worker, |tracer| {
                         self.reference_processors
                             .scan_phantom_refs(|o| tracer.trace_object(o));
                     });
@@ -136,15 +114,36 @@ impl WeakProcessor {
             }
         }
     }
+    pub fn forward_weak_refs(
+        &mut self,
+        worker: &mut GCWorker<OpenJDK>,
+        tracer_context: impl ObjectTracerContext<OpenJDK>,
+    ) {
+        assert!(matches!(self.phase, Phase::Inactive));
+
+        log::trace!("Entering forward_weak_refs.");
+
+        let nursery = false;
+
+        tracer_context.with_tracer(worker, |tracer| {
+            self.reference_processors
+                .forward_refs(|o| tracer.trace_object(o));
+            {
+                let mut finalizable_processor = self.finalizable_processor.lock().unwrap();
+                finalizable_processor.forward_candidate(&mut |o| tracer.trace_object(o), nursery);
+                finalizable_processor.forward_finalizable(&mut |o| tracer.trace_object(o), nursery);
+            }
+        });
+    }
 }
 
-struct ProcessWeakRefsWork<T: QueuingTracerFactory<OpenJDK>> {
-    tracer_factory: T,
+struct ProcessWeakRefsWork<T: ObjectTracerContext<OpenJDK>> {
+    tracer_context: T,
 }
 
-impl<T: QueuingTracerFactory<OpenJDK>> GCWork<OpenJDK> for ProcessWeakRefsWork<T> {
+impl<T: ObjectTracerContext<OpenJDK>> GCWork<OpenJDK> for ProcessWeakRefsWork<T> {
     fn do_work(&mut self, worker: &mut GCWorker<OpenJDK>, _mmtk: &'static mmtk::MMTK<OpenJDK>) {
-        self.tracer_factory.with_queuing_tracer(worker, |tracer| {
+        self.tracer_context.with_tracer(worker, |tracer| {
             let weak_processor = loop {
                 if let Ok(wp) = WEAK_PROCESSOR.try_borrow_mut() {
                     break wp;

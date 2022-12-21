@@ -1,9 +1,6 @@
-use mmtk::scheduler::GCWorker;
 use mmtk::util::alloc::AllocationError;
 use mmtk::util::opaque_pointer::*;
-use mmtk::vm::{
-    Collection, GCThreadContext, ProcessWeakRefsContext, QueuingTracerFactory, Scanning, VMBinding,
-};
+use mmtk::vm::{Collection, GCThreadContext, Scanning, VMBinding};
 use mmtk::{Mutator, MutatorContext};
 
 use crate::{MutatorClosure, OpenJDK};
@@ -103,15 +100,6 @@ impl Collection<OpenJDK> for VMCollection {
     fn vm_prepare(_tls: VMWorkerThread) {
         let weak_processor = WEAK_PROCESSOR.borrow_mut();
         assert!(!weak_processor.is_active());
-    }
-
-    fn process_weak_refs(
-        worker: &mut GCWorker<OpenJDK>,
-        context: ProcessWeakRefsContext,
-        tracer_factory: impl QueuingTracerFactory<OpenJDK>,
-    ) -> bool {
-        let mut weak_processor = WEAK_PROCESSOR.borrow_mut();
-        weak_processor.process_weak_refs(worker, context, tracer_factory)
     }
 
     fn vm_release(_tls: VMWorkerThread) {

@@ -1,11 +1,11 @@
-use crate::gc_work::*;
+use crate::{gc_work::*, WEAK_PROCESSOR};
 use crate::{EdgesClosure, OpenJDK};
 use crate::{NewBuffer, OpenJDKEdge, SINGLETON, UPCALLS};
 use mmtk::memory_manager;
-use mmtk::scheduler::WorkBucketStage;
+use mmtk::scheduler::{WorkBucketStage, GCWorker};
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::{Address, ObjectReference};
-use mmtk::vm::{EdgeVisitor, RootsWorkFactory, Scanning};
+use mmtk::vm::{EdgeVisitor, RootsWorkFactory, Scanning, ObjectTracerContext};
 use mmtk::Mutator;
 use mmtk::MutatorContext;
 
@@ -110,5 +110,21 @@ impl Scanning<OpenJDK> for VMScanning {
         unsafe {
             ((*UPCALLS).prepare_for_roots_re_scanning)();
         }
+    }
+
+    fn process_weak_refs(
+        worker: &mut GCWorker<OpenJDK>,
+        tracer_context: impl ObjectTracerContext<OpenJDK>,
+    ) -> bool {
+        let mut weak_processor = WEAK_PROCESSOR.borrow_mut();
+        weak_processor.process_weak_refs(worker, tracer_context)
+    }
+
+    fn forward_weak_refs(
+        worker: &mut GCWorker<OpenJDK>,
+        tracer_factory: impl ObjectTracerContext<OpenJDK>,
+    ) {
+        let mut weak_processor = WEAK_PROCESSOR.borrow_mut();
+        weak_processor.forward_weak_refs(worker, tracer_factory)
     }
 }
