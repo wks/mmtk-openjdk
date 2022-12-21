@@ -50,6 +50,9 @@ impl Collection<OpenJDK> for VMCollection {
                 to_mutator_closure(&mut mutator_visitor),
             );
         }
+
+        let weak_processor = WEAK_PROCESSOR.borrow_mut();
+        assert!(!weak_processor.is_active());
     }
 
     fn resume_mutators(tls: VMWorkerThread) {
@@ -95,11 +98,6 @@ impl Collection<OpenJDK> for VMCollection {
 
     fn schedule_finalization(_tls: VMWorkerThread) {
         Self::schedule_finalization2()
-    }
-
-    fn vm_prepare(_tls: VMWorkerThread) {
-        let weak_processor = WEAK_PROCESSOR.borrow_mut();
-        assert!(!weak_processor.is_active());
     }
 
     fn vm_release(_tls: VMWorkerThread) {
