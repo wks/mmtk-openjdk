@@ -234,21 +234,18 @@ pub extern "C" fn modify_check(object: ObjectReference) {
 #[no_mangle]
 pub extern "C" fn add_weak_candidate(reff: ObjectReference) {
     let weak_processor = WEAK_PROCESSOR.borrow();
-    assert!(!weak_processor.is_active());
     weak_processor.reference_processors.add_weak_candidate(reff)
 }
 
 #[no_mangle]
 pub extern "C" fn add_soft_candidate(reff: ObjectReference) {
     let weak_processor = WEAK_PROCESSOR.borrow();
-    assert!(!weak_processor.is_active());
     weak_processor.reference_processors.add_soft_candidate(reff)
 }
 
 #[no_mangle]
 pub extern "C" fn add_phantom_candidate(reff: ObjectReference) {
     let weak_processor = WEAK_PROCESSOR.borrow();
-    assert!(!weak_processor.is_active());
     weak_processor
         .reference_processors
         .add_phantom_candidate(reff)
