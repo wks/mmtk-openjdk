@@ -2,10 +2,10 @@ use crate::{gc_work::*, WEAK_PROCESSOR};
 use crate::{EdgesClosure, OpenJDK};
 use crate::{NewBuffer, OpenJDKEdge, SINGLETON, UPCALLS};
 use mmtk::memory_manager;
-use mmtk::scheduler::{WorkBucketStage, GCWorker};
+use mmtk::scheduler::{GCWorker, WorkBucketStage};
 use mmtk::util::opaque_pointer::*;
 use mmtk::util::{Address, ObjectReference};
-use mmtk::vm::{EdgeVisitor, RootsWorkFactory, Scanning, ObjectTracerContext};
+use mmtk::vm::{EdgeVisitor, ObjectTracerContext, RootsWorkFactory, Scanning};
 use mmtk::Mutator;
 use mmtk::MutatorContext;
 
