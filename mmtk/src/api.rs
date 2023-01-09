@@ -233,7 +233,8 @@ pub extern "C" fn modify_check(object: ObjectReference) {
 
 #[no_mangle]
 pub extern "C" fn add_weak_candidate(reff: ObjectReference) {
-    let weak_processor = WEAK_PROCESSOR.borrow();
+    //let weak_processor = WEAK_PROCESSOR.borrow();
+    let weak_processor = unsafe {&*WEAK_PROCESSOR.as_ptr()};
     weak_processor.reference_processors.add_weak_candidate(reff)
 }
 

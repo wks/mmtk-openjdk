@@ -40,16 +40,19 @@ impl ReferenceProcessors {
         }
     }
 
+    #[inline(always)]
     pub fn add_soft_candidate(&self, reff: ObjectReference) {
         trace!("Add soft candidate: {}", reff);
         self.soft.add_candidate(reff);
     }
 
+    #[inline(always)]
     pub fn add_weak_candidate(&self, reff: ObjectReference) {
         trace!("Add weak candidate: {}", reff);
         self.weak.add_candidate(reff);
     }
 
+    #[inline(always)]
     pub fn add_phantom_candidate(&self, reff: ObjectReference) {
         trace!("Add phantom candidate: {}", reff);
         self.phantom.add_candidate(reff);

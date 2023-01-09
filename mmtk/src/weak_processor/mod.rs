@@ -66,12 +66,17 @@ impl WeakProcessor {
                 Phase::Soft => {
                     tracer_context.with_tracer(worker, |tracer| {
                         self.reference_processors
-                            .scan_soft_refs(|o| tracer.trace_object(o));
+                            .scan_soft_refs(#[inline(always)] |o| tracer.trace_object(o));
                     });
                     self.phase = Phase::Weak;
                     break 'retry_loop true;
                 }
                 Phase::Weak => {
+                    tracer_context.with_tracer(worker, |tracer| {
+                        self.reference_processors
+                            .scan_weak_refs(#[inline(always)] |o| tracer.trace_object(o));
+                    });
+if false {    
                     // This is not necessary.
                     // I am testing if the QueuingTracerFactory can be
                     // cloned and sent to another work packet.
@@ -79,6 +84,7 @@ impl WeakProcessor {
                         tracer_context: tracer_context.clone(),
                     };
                     worker.scheduler().work_buckets[WorkBucketStage::VMRefClosure].add(work);
+                }
                     self.phase = Phase::Final;
                     break 'retry_loop true;
                 }
@@ -92,7 +98,7 @@ impl WeakProcessor {
                             finalizable_processor.ready_for_finalize.len()
                         );
 
-                        finalizable_processor.scan(|o| tracer.trace_object(o), nursery);
+                        finalizable_processor.scan(#[inline(always)] |o| tracer.trace_object(o), nursery);
                         debug!(
                             "Finished finalization, {} objects in candidates, {} objects ready to finalize",
                             finalizable_processor.candidates.len(),
@@ -106,7 +112,7 @@ impl WeakProcessor {
                 Phase::Phantom => {
                     tracer_context.with_tracer(worker, |tracer| {
                         self.reference_processors
-                            .scan_phantom_refs(|o| tracer.trace_object(o));
+                            .scan_phantom_refs(#[inline(always)] |o| tracer.trace_object(o));
                     });
                     self.phase = Phase::Inactive;
                     break 'retry_loop false;
