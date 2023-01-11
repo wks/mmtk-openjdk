@@ -1,8 +1,7 @@
-use mmtk::scheduler::{GCWork, GCWorker, WorkBucketStage};
 use mmtk::util::alloc::AllocationError;
 use mmtk::util::opaque_pointer::*;
 use mmtk::vm::{Collection, GCThreadContext, Scanning, VMBinding};
-use mmtk::{memory_manager, Mutator, MutatorContext};
+use mmtk::{Mutator, MutatorContext};
 
 use crate::{MutatorClosure, OpenJDK};
 use crate::{UPCALLS, WEAK_PROCESSOR};
@@ -101,9 +100,10 @@ impl Collection<OpenJDK> for VMCollection {
         Self::schedule_finalization2()
     }
 
-    fn vm_release(_tls: VMWorkerThread) {
-        // Create a work packet so that it can run in parallel with the `Release` work packet.
-        memory_manager::add_work_packet(&crate::SINGLETON, WorkBucketStage::Release, VMRelease)
+    fn post_forwarding(_tls: VMWorkerThread) {
+        let weak_processor = WEAK_PROCESSOR.borrow_mut();
+        assert!(!weak_processor.is_active());
+        weak_processor.reference_processors.enqueue_refs();
     }
 }
 
@@ -112,14 +112,5 @@ impl VMCollection {
         unsafe {
             ((*UPCALLS).schedule_finalizer)();
         }
-    }
-}
-
-struct VMRelease;
-impl GCWork<OpenJDK> for VMRelease {
-    fn do_work(&mut self, _worker: &mut GCWorker<OpenJDK>, _mmtk: &'static mmtk::MMTK<OpenJDK>) {
-        let weak_processor = WEAK_PROCESSOR.borrow_mut();
-        assert!(!weak_processor.is_active());
-        weak_processor.reference_processors.enqueue_refs();
     }
 }
