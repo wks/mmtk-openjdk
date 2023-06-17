@@ -21,6 +21,8 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     const UNIFIED_OBJECT_REFERENCE_ADDRESS: bool = true;
     const OBJECT_REF_OFFSET_LOWER_BOUND: isize = 0;
 
+    const NEED_VO_BITS_DURING_TRACING: bool = true;
+
     fn copy(
         from: ObjectReference,
         copy: CopySemantics,
