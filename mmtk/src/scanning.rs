@@ -45,7 +45,7 @@ pub(crate) fn to_edges_closure<E: Edge, F: RootsWorkFactory<E>>(factory: &mut F)
 }
 
 impl<const COMPRESSED: bool> Scanning<OpenJDK<COMPRESSED>> for VMScanning {
-    fn scan_object<EV: EdgeVisitor<OpenJDKEdge<COMPRESSED>>>(
+    fn scan_object<EV: EdgeVisitor<OpenJDK<COMPRESSED>>>(
         tls: VMWorkerThread,
         object: ObjectReference,
         edge_visitor: &mut EV,
