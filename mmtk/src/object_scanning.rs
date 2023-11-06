@@ -88,15 +88,8 @@ impl OopIterate for ObjArrayKlass {
         closure: &mut impl EdgeVisitor<OpenJDK<COMPRESSED>>,
     ) {
         let array = unsafe { oop.as_array_oop() };
-        if COMPRESSED {
-            for narrow_oop in unsafe { array.data::<NarrowOop, COMPRESSED>(BasicType::T_OBJECT) } {
-                closure.visit_edge(narrow_oop.slot().into());
-            }
-        } else {
-            for oop in unsafe { array.data::<Oop, COMPRESSED>(BasicType::T_OBJECT) } {
-                closure.visit_edge(Address::from_ref(oop as &Oop).into());
-            }
-        }
+        let slice = unsafe { array.slice::<COMPRESSED>(BasicType::T_OBJECT) };
+        closure.visit_slice(slice)
     }
 }
 
@@ -177,7 +170,10 @@ fn oop_iterate_slow<const COMPRESSED: bool, V: EdgeVisitor<OpenJDK<COMPRESSED>>>
     }
 }
 
-fn oop_iterate<const COMPRESSED: bool>(oop: Oop, closure: &mut impl EdgeVisitor<OpenJDK<COMPRESSED>>) {
+fn oop_iterate<const COMPRESSED: bool>(
+    oop: Oop,
+    closure: &mut impl EdgeVisitor<OpenJDK<COMPRESSED>>,
+) {
     let klass = oop.klass::<COMPRESSED>();
     let klass_id = klass.id;
     assert!(
