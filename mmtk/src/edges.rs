@@ -202,6 +202,30 @@ impl<const COMPRESSED: bool> From<Range<Address>> for OpenJDKEdgeRange<COMPRESSE
     }
 }
 
+pub struct ChunkIterator<const COMPRESSED: bool> {
+    cursor: Address,
+    limit: Address,
+    step: usize,
+}
+
+impl<const COMPRESSED: bool> Iterator for ChunkIterator<COMPRESSED> {
+    type Item = OpenJDKEdgeRange<COMPRESSED>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.cursor >= self.limit {
+            None
+        } else {
+            let start = self.cursor;
+            let mut end = start + self.step;
+            if end > self.limit {
+                end = self.limit;
+            }
+            self.cursor = end;
+            Some((start..end).into())
+        }
+    }
+}
+
 pub struct OpenJDKEdgeRangeIterator<const COMPRESSED: bool> {
     cursor: Address,
     limit: Address,
@@ -232,11 +256,20 @@ impl<const COMPRESSED: bool> From<OpenJDKEdgeRange<COMPRESSED>> for Range<Addres
 impl<const COMPRESSED: bool> MemorySlice for OpenJDKEdgeRange<COMPRESSED> {
     type Edge = OpenJDKEdge<COMPRESSED>;
     type EdgeIterator = OpenJDKEdgeRangeIterator<COMPRESSED>;
+    type ChunkIterator = ChunkIterator<COMPRESSED>;
 
     fn iter_edges(&self) -> Self::EdgeIterator {
         OpenJDKEdgeRangeIterator {
             cursor: self.range.start.addr,
             limit: self.range.end.addr,
+        }
+    }
+
+    fn chunks(&self, chunk_size: usize) -> Self::ChunkIterator {
+        ChunkIterator {
+            cursor: self.range.start.addr,
+            limit: self.range.end.addr,
+            step: chunk_size << OpenJDKEdge::<COMPRESSED>::LOG_BYTES_IN_EDGE,
         }
     }
 
@@ -250,6 +283,10 @@ impl<const COMPRESSED: bool> MemorySlice for OpenJDKEdgeRange<COMPRESSED> {
 
     fn bytes(&self) -> usize {
         self.range.end.addr - self.range.start.addr
+    }
+
+    fn len(&self) -> usize {
+        self.bytes() >> OpenJDKEdge::<COMPRESSED>::LOG_BYTES_IN_EDGE
     }
 
     fn copy(src: &Self, tgt: &Self) {
