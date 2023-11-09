@@ -10,6 +10,8 @@ use mmtk::vm::EdgeVisitor;
 use std::cell::UnsafeCell;
 use std::mem;
 
+const USE_SLICE_FOR_OOP_MAP_BLOCK: bool = false;
+
 trait OopIterate: Sized {
     fn oop_iterate<const COMPRESSED: bool>(
         &self,
@@ -24,11 +26,17 @@ impl OopIterate for OopMapBlock {
         oop: Oop,
         closure: &mut impl EdgeVisitor<OpenJDK<COMPRESSED>>,
     ) {
-        let log_bytes_in_oop = if COMPRESSED { 2 } else { 3 };
+        let log_bytes_in_oop = OpenJDKEdge::<COMPRESSED>::LOG_BYTES_IN_EDGE;
         let start = oop.get_field_address(self.offset);
-        for i in 0..self.count as usize {
-            let edge = (start + (i << log_bytes_in_oop)).into();
-            closure.visit_edge(edge);
+        if USE_SLICE_FOR_OOP_MAP_BLOCK {
+            let end = start + ((self.count as usize) << log_bytes_in_oop);
+            let slice = OpenJDKEdgeRange::<COMPRESSED>::from(start..end);
+            closure.visit_slice(slice);
+        } else {
+            for i in 0..self.count as usize {
+                let edge = (start + (i << log_bytes_in_oop)).into();
+                closure.visit_edge(edge);
+            }
         }
     }
 }
