@@ -1,3 +1,5 @@
+use crate::edges::OpenJDKEdge;
+use crate::edges::OpenJDKEdgeRange;
 use crate::OpenJDK;
 
 use super::abi::*;
@@ -6,7 +8,7 @@ use mmtk::util::opaque_pointer::*;
 use mmtk::util::{Address, ObjectReference};
 use mmtk::vm::EdgeVisitor;
 use std::cell::UnsafeCell;
-use std::{mem, slice};
+use std::mem;
 
 trait OopIterate: Sized {
     fn oop_iterate<const COMPRESSED: bool>(
@@ -55,19 +57,9 @@ impl OopIterate for InstanceMirrorKlass {
         // static fields
         let start = Self::start_of_static_fields(oop);
         let len = Self::static_oop_field_count(oop);
-        if COMPRESSED {
-            let start: *const NarrowOop = start.to_ptr::<NarrowOop>();
-            let slice = unsafe { slice::from_raw_parts(start, len as _) };
-            for narrow_oop in slice {
-                closure.visit_edge(narrow_oop.slot().into());
-            }
-        } else {
-            let start: *const Oop = start.to_ptr::<Oop>();
-            let slice = unsafe { slice::from_raw_parts(start, len as _) };
-            for oop in slice {
-                closure.visit_edge(Address::from_ref(oop as &Oop).into());
-            }
-        }
+        let end = start + (len << OpenJDKEdge::<COMPRESSED>::LOG_BYTES_IN_EDGE);
+        let slice = OpenJDKEdgeRange::<COMPRESSED>::from(start..end);
+        closure.visit_slice(slice);
     }
 }
 

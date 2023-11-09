@@ -338,6 +338,7 @@ pub type Oop = &'static OopDesc;
 pub struct NarrowOop(u32);
 
 impl NarrowOop {
+    #[allow(unused)]
     pub fn slot(&self) -> Address {
         Address::from_ref(self)
     }
